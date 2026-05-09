@@ -1,0 +1,434 @@
+{% comment %}
+  Bundle Offer — Buy 2 Save 10%, Buy 3 Save 20%
+  File: sections/bundle-offer.liquid
+{% endcomment %}
+
+{% assign product = closest.product | default: product %}
+{% assign current_variant = product.selected_or_first_available_variant %}
+{% assign original_price = current_variant.price %}
+
+{% assign bundle2_price = original_price | times: 2 | times: 0.90 | round %}
+{% assign bundle2_savings = original_price | times: 2 | minus: bundle2_price %}
+
+{% assign bundle3_price = original_price | times: 3 | times: 0.80 | round %}
+{% assign bundle3_savings = original_price | times: 3 | minus: bundle3_price %}
+
+<div class="bpo" id="bpo-{{ section.id }}">
+
+  <div class="bpo__header">
+    <span class="bpo__tag">🔥 BUNDLE &amp; SAVE</span>
+    <h3 class="bpo__title">Buy More, Save More</h3>
+  </div>
+
+  <div class="bpo__options">
+
+    <!-- Buy 1 -->
+    <label class="bpo__option" data-qty="1" data-price="{{ original_price }}">
+      <input type="radio" name="bpo_qty_{{ section.id }}" value="1" class="bpo__radio">
+      <div class="bpo__row">
+        <div class="bpo__check">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="bpo__qty">× 1</div>
+        <div class="bpo__info">
+          <div class="bpo__name">Buy 1</div>
+          <div class="bpo__sub">Single pack</div>
+        </div>
+        <div class="bpo__price-col">
+          <div class="bpo__final">{{ original_price | money }}</div>
+        </div>
+      </div>
+    </label>
+
+    <!-- Buy 2 -->
+    <label class="bpo__option bpo__option--active" data-qty="2" data-price="{{ bundle2_price }}">
+      <div class="bpo__badge">POPULAR</div>
+      <input type="radio" name="bpo_qty_{{ section.id }}" value="2" class="bpo__radio" checked>
+      <div class="bpo__row">
+        <div class="bpo__check">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="bpo__qty">× 2</div>
+        <div class="bpo__info">
+          <div class="bpo__name">Buy 2 <span class="bpo__pill">Save 22%</span></div>
+          <div class="bpo__sub">You save {{ bundle2_savings | money }}</div>
+        </div>
+        <div class="bpo__price-col">
+          <div class="bpo__orig">{{ original_price | times: 2 | money }}</div>
+          <div class="bpo__final bpo__final--sale">{{ bundle2_price | money }}</div>
+        </div>
+      </div>
+    </label>
+
+    <!-- Buy 3 -->
+    <label class="bpo__option" data-qty="3" data-price="{{ bundle3_price }}">
+      <div class="bpo__badge bpo__badge--best">BEST VALUE</div>
+      <input type="radio" name="bpo_qty_{{ section.id }}" value="3" class="bpo__radio">
+      <div class="bpo__row">
+        <div class="bpo__check">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 5.5l3 3 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="bpo__qty">× 3</div>
+        <div class="bpo__info">
+          <div class="bpo__name">Buy 3 <span class="bpo__pill bpo__pill--best">Save 33%</span></div>
+          <div class="bpo__sub">You save {{ bundle3_savings | money }}</div>
+        </div>
+        <div class="bpo__price-col">
+          <div class="bpo__orig">{{ original_price | times: 3 | money }}</div>
+          <div class="bpo__final bpo__final--sale">{{ bundle3_price | money }}</div>
+        </div>
+      </div>
+    </label>
+
+  </div>
+
+  <button
+    type="button"
+    class="bpo__cta"
+    id="bpo-btn-{{ section.id }}"
+    data-variant-id="{{ current_variant.id }}"
+    data-section="{{ section.id }}"
+  >
+    <svg class="bpo__cart-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <path d="M2 2h1.5l2.5 9h8l2-6H6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="8" cy="16" r="1.2" fill="currentColor"/>
+      <circle cx="14" cy="16" r="1.2" fill="currentColor"/>
+    </svg>
+    <span class="bpo__cta-text">Add to Cart</span>
+    <span class="bpo__cta-price" id="bpo-price-{{ section.id }}">{{ bundle2_price | money }}</span>
+  </button>
+
+
+</div>
+
+<style>
+  .bpo {
+    background: #fff;
+    border: 1.5px solid #e5e5e5;
+    border-radius: 14px;
+    padding: 22px;
+    margin: 24px 0;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    position: relative;
+  }
+
+  .bpo__header {
+    margin-bottom: 16px;
+  }
+
+  .bpo__tag {
+    display: inline-block;
+    background: #00BFFF;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  .bpo__title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #111;
+    margin: 0;
+    line-height: 1.2;
+  }
+
+  .bpo__options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .bpo__option {
+    position: relative;
+    cursor: pointer;
+    border: 2px solid #e5e5e5;
+    border-radius: 12px;
+    display: block;
+    transition: border-color 0.18s, background 0.18s;
+    background: #fff;
+  }
+
+  .bpo__option:hover {
+    border-color: #00BFFF;
+  }
+
+  .bpo__radio {
+    display: none;
+  }
+
+  .bpo__badge {
+    position: absolute;
+    top: -11px;
+    right: 14px;
+    background: #00BFFF;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    padding: 3px 9px;
+    border-radius: 10px;
+    text-transform: uppercase;
+  }
+
+  .bpo__badge--best {
+    background: #FFD700;
+    color: #111;
+  }
+
+  .bpo__row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 14px;
+  }
+
+  .bpo__check {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: transparent;
+    transition: all 0.18s;
+  }
+
+  .bpo__qty {
+    background: #f2f2f2;
+    color: #444;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 9px;
+    border-radius: 7px;
+    flex-shrink: 0;
+    transition: all 0.18s;
+  }
+
+  .bpo__info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .bpo__name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #111;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .bpo__pill {
+    background: #e6f9ff;
+    color: #007aaa;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 5px;
+  }
+
+  .bpo__pill--best {
+    background: #fff8d6;
+    color: #a07800;
+  }
+
+  .bpo__sub {
+    font-size: 11px;
+    color: #999;
+    margin-top: 2px;
+  }
+
+  .bpo__price-col {
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .bpo__orig {
+    font-size: 11px;
+    color: #bbb;
+    text-decoration: line-through;
+  }
+
+  .bpo__final {
+    font-size: 15px;
+    font-weight: 700;
+    color: #111;
+  }
+
+  .bpo__final--sale {
+    color: #e63946;
+  }
+
+  /* Selected state */
+  .bpo__option--active {
+    border-color: #00BFFF;
+    background: #f0fbff;
+  }
+
+  .bpo__option--active .bpo__check {
+    background: #00BFFF;
+    border-color: #00BFFF;
+    color: #fff;
+  }
+
+  .bpo__option--active .bpo__qty {
+    background: #d0f3ff;
+    color: #007aaa;
+  }
+
+  /* CTA Button — matches Patch UP! cyan brand */
+  .bpo__cta {
+    width: 100%;
+    background: #00BFFF;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 15px 20px;
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    letter-spacing: 0.3px;
+    transition: background 0.18s, transform 0.15s;
+  }
+
+  .bpo__cta:hover {
+    background: #00a8e0;
+    transform: translateY(-1px);
+  }
+
+  .bpo__cta:active {
+    transform: translateY(0);
+  }
+
+  .bpo__cta:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .bpo__cart-icon {
+    flex-shrink: 0;
+  }
+
+  .bpo__cta-text {
+    flex: 1;
+    text-align: center;
+  }
+
+  .bpo__cta-price {
+    background: rgba(0,0,0,0.12);
+    padding: 4px 10px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .bpo__trust {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 13px;
+    font-size: 11px;
+    color: #bbb;
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 480px) {
+    .bpo { padding: 16px; }
+    .bpo__title { font-size: 17px; }
+    .bpo__row { padding: 11px 12px; gap: 8px; }
+  }
+</style>
+
+<script>
+(function() {
+  var sid = '{{ section.id }}';
+  var section = document.getElementById('bpo-' + sid);
+  if (!section) return;
+
+  var options  = section.querySelectorAll('.bpo__option');
+  var btn      = document.getElementById('bpo-btn-' + sid);
+  var priceEl  = document.getElementById('bpo-price-' + sid);
+  var textEl   = btn ? btn.querySelector('.bpo__cta-text') : null;
+
+  // Update price display when option changes
+  options.forEach(function(opt) {
+    opt.addEventListener('click', function() {
+      options.forEach(function(o) { o.classList.remove('bpo__option--active'); });
+      opt.classList.add('bpo__option--active');
+      var priceCents = parseInt(opt.getAttribute('data-price'));
+      if (priceEl) priceEl.textContent = 'Rs.' + (priceCents / 100).toFixed(2);
+    });
+  });
+
+  if (!btn) return;
+
+  btn.addEventListener('click', function() {
+    var activeOpt  = section.querySelector('.bpo__option--active');
+    var qty        = activeOpt ? parseInt(activeOpt.getAttribute('data-qty')) : 2;
+    var variantId  = parseInt(btn.getAttribute('data-variant-id'));
+
+    if (!variantId || isNaN(variantId)) {
+      alert('Product variant not found. Please refresh the page.');
+      return;
+    }
+
+    btn.disabled = true;
+    if (textEl) textEl.textContent = 'Adding...';
+
+    fetch('/cart/add.js', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ id: variantId, quantity: qty })
+    })
+    .then(function(r) {
+      if (!r.ok) return r.json().then(function(e) { throw new Error(e.description || 'Cart error'); });
+      return r.json();
+    })
+    .then(function() {
+      if (textEl) textEl.textContent = '✓ Added to Cart!';
+
+      // Fire all known Shopify cart drawer events
+      document.dispatchEvent(new CustomEvent('cart:open'));
+      document.dispatchEvent(new CustomEvent('cart:refresh'));
+      document.dispatchEvent(new CustomEvent('dispatch:cart-drawer:open'));
+
+      // Fallback: click header cart icon
+      var cartLink = document.querySelector('[data-cart-toggle], .cart-count-bubble, header a[href="/cart"], .header__icon--cart');
+      if (cartLink) cartLink.click();
+
+      setTimeout(function() {
+        btn.disabled = false;
+        if (textEl) textEl.textContent = 'Add to Cart';
+      }, 2200);
+    })
+    .catch(function(err) {
+      btn.disabled = false;
+      if (textEl) textEl.textContent = 'Error — Try Again';
+      console.error('Bundle cart error:', err);
+    });
+  });
+})();
+</script>
+
+{% schema %}
+{
+  "name": "Bundle Offer",
+  "settings": [],
+  "presets": [{ "name": "Bundle Offer" }]
+}
+{% endschema %}
