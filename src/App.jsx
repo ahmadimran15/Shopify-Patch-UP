@@ -36,65 +36,97 @@ const FAQItem = ({ question, answer }) => {
 
 // --- Cart Page Component --- //
 
-const CartPage = ({ cart, onUpdateQty, onRemove, onNavigate }) => {
+const CartPage = ({ cart, onUpdateQty, onRemove, onNavigate, productInfo }) => {
   const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+  const totalQty = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
     <div className="cart-page-bg">
-      <div className="page-width">
+      <div className="cart-mobile-wrap">
+
+        {/* Header */}
         <div className="cart-header">
           <h1>Cart</h1>
-          <div className="cart-count-bubble">{cart.reduce((acc, item) => acc + item.quantity, 0)}</div>
+          <div className="cart-count-bubble">{totalQty}</div>
         </div>
 
         {cart.length === 0 ? (
-          <div style={{textAlign:'center', padding:'100px 0'}}>
-            <p style={{marginBottom:'20px'}}>Your cart is empty</p>
-            <button className="checkout-btn" onClick={() => onNavigate('home')} style={{width:'auto', padding:'12px 30px'}}>Continue shopping</button>
+          <div style={{textAlign:'center', padding:'80px 20px'}}>
+            <p style={{marginBottom:'20px', color:'#666'}}>Your cart is empty</p>
+            <button className="cart-checkout-btn" onClick={() => onNavigate('home')}>Continue shopping</button>
           </div>
         ) : (
-          <div className="cart-split">
-            <div className="cart-items">
+          <>
+            {/* Cart Items Card */}
+            <div className="cart-items-card">
               {cart.map((item, index) => (
-                <div className="cart-item" key={index}>
-                  <div className="cart-item-left">
-                    <div className="cart-item-image">
-                      <img src={item.imageUrls?.[0] || "/product.png"} alt={item.name} />
+                <div className="cart-item-row" key={index}>
+                  <div className="cart-item-img">
+                    <img src={item.imageUrls?.[0] || '/product.png'} alt={item.name} />
+                  </div>
+                  <div className="cart-item-info">
+                    <div className="cart-item-name">
+                      {item.name}
+                      <span className="cart-item-bundle"> ({item.bundleName})</span>
                     </div>
-                    <div className="cart-item-details">
-                      <h4>{item.name} <span style={{color:'var(--cyan)', fontWeight:'800'}}>({item.bundleName})</span></h4>
-                      <div className="cart-item-prices">
-                        <span>Rs.{item.price.toFixed(2)}</span>
-                        {item.compareAtPrice > item.price && <span className="original">Rs.{item.compareAtPrice.toFixed(2)}</span>}
+                    {item.compareAtPrice > item.price && (
+                      <div className="cart-item-save">
+                        Save {Math.round((1 - item.price / item.compareAtPrice) * 100)}%
                       </div>
+                    )}
+                    <div className="cart-item-prices">
+                      <span className="cart-item-price">Rs.{item.price.toFixed(2)}</span>
+                      {item.compareAtPrice > item.price && (
+                        <span className="cart-item-compare">Rs.{item.compareAtPrice.toFixed(2)}</span>
+                      )}
+                    </div>
+                    <div className="cart-item-bottom">
+                      <div className="qty-selector">
+                        <button className="qty-btn" onClick={() => onUpdateQty(index, -1)}><Minus size={13}/></button>
+                        <span className="qty-input">{item.quantity}</span>
+                        <button className="qty-btn" onClick={() => onUpdateQty(index, 1)}><Plus size={13}/></button>
+                      </div>
+                      <button className="cart-item-remove" onClick={() => onRemove(index)}><Trash2 size={16}/></button>
                     </div>
                   </div>
-
-                  <div className="cart-item-controls">
-                    <div className="qty-selector">
-                      <button className="qty-btn" onClick={(e) => { e.stopPropagation(); onUpdateQty(index, -1); }}><Minus size={14} /></button>
-                      <input type="text" className="qty-input" value={item.quantity} readOnly />
-                      <button className="qty-btn" onClick={(e) => { e.stopPropagation(); onUpdateQty(index, 1); }}><Plus size={14} /></button>
-                    </div>
-                    <button className="cart-item-remove" onClick={() => onRemove(index)}>
-                      <Trash2 size={18} />
-                    </button>
-                    <div className="cart-item-total">Rs.{(item.price * item.quantity).toFixed(2)}</div>
-                  </div>
+                  <div className="cart-item-total">Rs.{(item.price * item.quantity).toFixed(2)}</div>
                 </div>
               ))}
             </div>
 
-            <div className="cart-summary">
-              <div className="summary-total-row">
-                <span className="summary-total-label">Estimated total</span>
-                <span className="summary-total-value">Rs.{subtotal.toFixed(2)} PKR</span>
-              </div>
-              <div className="summary-tax-note">Taxes and shipping calculated at checkout.</div>
-              
-              <button className="checkout-btn" onClick={() => onNavigate('checkout')}>Check out</button>
+            {/* Discount Row */}
+            <div className="cart-discount-row">
+              <span>Discount</span>
+              <Plus size={16} />
             </div>
-          </div>
+
+            {/* Summary */}
+            <div className="cart-summary-card">
+              <div className="cart-summary-row">
+                <span className="cart-summary-label">Estimated total</span>
+                <span className="cart-summary-value">Rs.{subtotal.toFixed(2)} PKR</span>
+              </div>
+              <div className="cart-summary-note">Taxes and shipping calculated at checkout.</div>
+              <button className="cart-checkout-btn" onClick={() => onNavigate('checkout')}>Check out</button>
+            </div>
+
+            {/* You may also like */}
+            <div className="cart-upsell">
+              <h3 className="cart-upsell-title">You may also like</h3>
+              <div className="cart-upsell-card" onClick={() => onNavigate('product')}>
+                <div className="cart-upsell-img">
+                  <img src={productInfo?.imageUrls?.[0] || '/product.png'} alt="Product" />
+                  <div className="cart-upsell-badge">Sale</div>
+                  <div className="cart-upsell-cart-btn"><ShoppingCart size={14} color="#fff" /></div>
+                </div>
+                <div className="cart-upsell-name">{productInfo?.name || '30 Day Acne Emergency Kit'}</div>
+                <div className="cart-upsell-prices">
+                  <span>Rs.{productInfo?.price?.toFixed(2)}</span>
+                  <span className="cart-upsell-compare">Rs.{productInfo?.compareAtPrice?.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>
@@ -268,6 +300,28 @@ const ProductPage = ({ onAddToCart, productInfo }) => {
           </p>
         </section>
       </main>
+
+      {/* Customer Results Section — Mobile Only */}
+      <section className="customer-results-section">
+        {/* Video Placeholder */}
+        <div className="video-placeholder">
+          <div className="video-placeholder__inner">
+            <div className="video-play-btn">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="white"><polygon points="5,3 19,12 5,21"/></svg>
+            </div>
+            <p className="video-placeholder__label">📹 Your Video Goes Here</p>
+          </div>
+        </div>
+
+        {/* Results image with badge */}
+        <div className="results-image-wrap">
+          <img src="/product.png" alt="Customer Results" className="results-image" />
+          <div className="results-badge-top">FIX YOUR PIMPLE TONIGHT!</div>
+          <div className="results-badge-bottom">33% OFF LIMITED OFFER 🧊</div>
+        </div>
+
+        <p className="results-caption">See our Customers Results — Real Results, Real Skin ✨</p>
+      </section>
     </div>
   );
 };
@@ -278,7 +332,7 @@ const HomePage = ({ onNavigate, productInfo }) => {
   return (
     <div>
       <section className="hero">
-        <img src={productInfo.imageUrls?.[0] || "/hero.png"} alt="Hero" />
+        <img src="/hero.png" alt="Hero" />
         <h2>Fix Pimples While You Sleep</h2>
       </section>
 
@@ -290,6 +344,9 @@ const HomePage = ({ onNavigate, productInfo }) => {
             <div className="product-card__image-container">
               <img src={productInfo.imageUrls?.[0] || "/product.png"} alt="Product" />
               <div className="product-card__badge">Sale</div>
+              <div className="product-card__mobile-cart-btn">
+                <ShoppingCart size={16} color="#fff" />
+              </div>
             </div>
             <div className="product-card__title">{productInfo.name || "30 Day Acne Emergency Kit"}</div>
             <div className="product-card__price-row">
@@ -310,6 +367,25 @@ const HomePage = ({ onNavigate, productInfo }) => {
           question="What is the return policy?"
           answer="Our goal is for every customer to be totally satisfied with their purchase. If this isn't the case, let us know and we'll do our best to work with you to make it right."
         />
+        <FAQItem 
+          question="When will I get my order?"
+          answer="Orders are dispatched within 1–2 business days. Delivery typically takes 3–5 business days depending on your location."
+        />
+        <FAQItem 
+          question="Where are your products manufactured?"
+          answer="Our pimple patches are made from premium medical-grade hydrocolloid and are manufactured under strict quality standards."
+        />
+        <FAQItem 
+          question="How much does shipping cost?"
+          answer="Shipping is a flat Rs.250 across all orders. Free shipping may be available on promotional bundles."
+        />
+      </section>
+
+      <section className="testimonial-section">
+        <blockquote className="testimonial-quote">
+          "Small patch. Big difference. Handle breakouts quietly, confidently, overnight."
+        </blockquote>
+        <button className="testimonial-cta" onClick={() => onNavigate('product')}>Shop now</button>
       </section>
     </div>
   );
@@ -1237,12 +1313,21 @@ function App() {
     else { showToast('Successfully subscribed!'); setEmailInput(''); }
   };
 
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
     <div className="app-container">
       {currentPage !== 'checkout' && currentPage !== 'admin' && (
         <>
           <div className="top-bar">Clear Skin. No Drama.</div>
           <header className="header">
+            {/* Mobile Left: Hamburger + Search */}
+            <div className="header__mobile-left">
+              <button className="header__hamburger" onClick={() => setMobileMenuOpen(o => !o)}><Menu size={22} /></button>
+              <button className="header__search-mobile"><Search size={20} /></button>
+            </div>
+
+            {/* Logo - always centered on mobile */}
             <div className="header__left">
               <a href="#" onClick={(e) => { e.preventDefault(); handleNavigate('home'); }} className="header__logo"><span>PATCH</span><span>UP!</span></a>
               <nav className="header__nav">
@@ -1250,20 +1335,32 @@ function App() {
                 <a href="#" onClick={(e) => { e.preventDefault(); handleNavigate('product'); }}>Catalog</a>
               </nav>
             </div>
+
             <div className="header__icons">
-              <button><User size={20} /></button>
+              <button className="header__icon-desktop"><User size={20} /></button>
               <button onClick={() => handleNavigate('cart')}>
                 <ShoppingBag size={20} />
                 {cart.reduce((a, b) => a + b.quantity, 0) > 0 && <span className="cart-badge">{cart.reduce((a, b) => a + b.quantity, 0)}</span>}
               </button>
             </div>
           </header>
+
+          {/* Mobile Slide-down Menu */}
+          {mobileMenuOpen && (
+            <div className="mobile-menu-overlay" onClick={() => setMobileMenuOpen(false)}>
+              <div className="mobile-menu" onClick={e => e.stopPropagation()}>
+                <button className="mobile-menu-close" onClick={() => setMobileMenuOpen(false)}><X size={22} /></button>
+                <a href="#" onClick={(e) => { e.preventDefault(); handleNavigate('home'); setMobileMenuOpen(false); }}>Home</a>
+                <a href="#" onClick={(e) => { e.preventDefault(); handleNavigate('product'); setMobileMenuOpen(false); }}>Catalog</a>
+              </div>
+            </div>
+          )}
         </>
       )}
 
       {currentPage === 'home' && <HomePage onNavigate={handleNavigate} productInfo={productInfo} />}
       {currentPage === 'product' && <ProductPage onAddToCart={handleAddToCart} productInfo={productInfo} />}
-      {currentPage === 'cart' && <CartPage cart={cart} onUpdateQty={handleUpdateQty} onRemove={handleRemoveFromCart} onNavigate={handleNavigate} onShowToast={showToast} />}
+      {currentPage === 'cart' && <CartPage cart={cart} onUpdateQty={handleUpdateQty} onRemove={handleRemoveFromCart} onNavigate={handleNavigate} onShowToast={showToast} productInfo={productInfo} />}
       {currentPage === 'checkout' && <CheckoutPage onNavigate={handleNavigate} cart={cart} onClearCart={() => setCart([])} onSuccess={(data) => setLastOrder(data)} onShowToast={showToast} />}
       {currentPage === 'thank-you' && <ThankYouPage order={lastOrder} onNavigate={handleNavigate} />}
       {currentPage === 'admin' && <AdminPortal productInfo={productInfo} onUpdateProduct={(info) => setProductInfo(info)} onShowToast={showToast} />}
@@ -1279,7 +1376,7 @@ function App() {
               </form>
             </div>
           </div>
-          <div className="footer__bottom"><div>© 2026 Patch Up, Powered by Shopify</div></div>
+          <div className="footer__bottom"><div>© 2026 Patch Up, Powered by Shopify</div><div>Terms and Policies</div></div>
         </footer>
       )}
 
