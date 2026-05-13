@@ -333,7 +333,7 @@ const HomePage = ({ onNavigate, productInfo }) => {
     <div>
       <section className="hero">
         <img src="/hero.png" alt="Hero" />
-        <h2>Fix Pimples While You Sleep</h2>
+        <h2>Fix Pimples While You Sleep2</h2>
       </section>
 
       <section className="products-section page-width">
