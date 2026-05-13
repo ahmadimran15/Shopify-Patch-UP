@@ -1512,11 +1512,28 @@ const AdminPortal = ({ productInfo, onUpdateProduct, onShowToast }) => {
 
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
-  const [cart, setCart] = useState([]);
+
+  // --- Cart persisted to localStorage ---
+  const [cart, setCart] = useState(() => {
+    try {
+      const saved = localStorage.getItem('patchup_cart');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
   const [emailInput, setEmailInput] = useState('');
   const [productInfo, setProductInfo] = useState({ name: "", price: 0, compareAtPrice: 0, imageUrls: [], stock: 0 });
   const [lastOrder, setLastOrder] = useState(null);
   const [toast, setToast] = useState(null);
+
+  // Sync cart to localStorage on every change
+  useEffect(() => {
+    try {
+      localStorage.setItem('patchup_cart', JSON.stringify(cart));
+    } catch {}
+  }, [cart]);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -1625,7 +1642,7 @@ function App() {
       {currentPage === 'home' && <HomePage onNavigate={handleNavigate} productInfo={productInfo} />}
       {currentPage === 'product' && <ProductPage onAddToCart={handleAddToCart} productInfo={productInfo} />}
       {currentPage === 'cart' && <CartPage cart={cart} onUpdateQty={handleUpdateQty} onRemove={handleRemoveFromCart} onNavigate={handleNavigate} onShowToast={showToast} productInfo={productInfo} />}
-      {currentPage === 'checkout' && <CheckoutPage onNavigate={handleNavigate} cart={cart} onClearCart={() => setCart([])} onSuccess={(data) => setLastOrder(data)} onShowToast={showToast} />}
+      {currentPage === 'checkout' && <CheckoutPage onNavigate={handleNavigate} cart={cart} onClearCart={() => { setCart([]); localStorage.removeItem('patchup_cart'); }} onSuccess={(data) => setLastOrder(data)} onShowToast={showToast} />}
       {currentPage === 'thank-you' && <ThankYouPage order={lastOrder} onNavigate={handleNavigate} />}
       {currentPage === 'admin' && <AdminPortal productInfo={productInfo} onUpdateProduct={(info) => setProductInfo(info)} onShowToast={showToast} />}
 
