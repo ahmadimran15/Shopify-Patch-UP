@@ -1528,10 +1528,21 @@ function App() {
   const [lastOrder, setLastOrder] = useState(null);
   const [toast, setToast] = useState(null);
 
-  // Sync cart to localStorage on every change
+  // Track if we've passed the initial mount (prevents StrictMode double-invoke from wiping localStorage)
+  const isMounted = useRef(false);
+
+  // Sync cart to localStorage on every change (skip the very first render)
   useEffect(() => {
+    if (!isMounted.current) {
+      isMounted.current = true;
+      return; // skip initial mount — cart is already correctly read FROM localStorage
+    }
     try {
-      localStorage.setItem('patchup_cart', JSON.stringify(cart));
+      if (cart.length === 0) {
+        localStorage.removeItem('patchup_cart');
+      } else {
+        localStorage.setItem('patchup_cart', JSON.stringify(cart));
+      }
     } catch {}
   }, [cart]);
 
