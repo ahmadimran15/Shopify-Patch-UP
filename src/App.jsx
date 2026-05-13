@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, User, ShoppingBag, ChevronDown, ChevronUp, ArrowRight, ShoppingCart, Menu, Trash2, Plus, Minus, Image as ImageIcon, Info, LayoutDashboard, Tag, LogOut, Package, RefreshCcw, X, ChevronLeft, ChevronRight, Clock, CheckCircle2, XCircle, AlertCircle, MoreVertical, Eye, CreditCard, Bell, Check } from 'lucide-react';
+import { Search, User, ShoppingBag, ChevronDown, ChevronUp, ArrowRight, ShoppingCart, Menu, Trash2, Plus, Minus, Image as ImageIcon, Info, LayoutDashboard, Tag, LogOut, Package, RefreshCcw, X, ChevronLeft, ChevronRight, Clock, CheckCircle2, XCircle, AlertCircle, MoreVertical, Eye, CreditCard, Bell, Check, BarChart2, TrendingUp, Calendar, DollarSign, Layers } from 'lucide-react';
 import { supabase } from './supabase';
 
 // --- Shared Components --- //
@@ -559,6 +559,25 @@ const CheckoutPage = ({ onNavigate, cart, onClearCart, onSuccess, onShowToast })
       .select();
 
     if (!error && data && data.length > 0) {
+      // --- Deduct Inventory ---
+      // Each cart item has: bundleId (1=buy1, 2=buy2, 3=buy3), quantity (how many times added)
+      // Units deducted = bundleCount * quantity
+      const bundleCountMap = { 1: 1, 2: 2, 3: 3 };
+      const totalUnitsOrdered = cart.reduce((sum, item) => {
+        const unitsPerBundle = bundleCountMap[item.bundleId] || 1;
+        return sum + (unitsPerBundle * item.quantity);
+      }, 0);
+
+      if (totalUnitsOrdered > 0) {
+        // Fetch current stock first, then decrement
+        const { data: prodData } = await supabase.from('products').select('stock').eq('id', 1).single();
+        if (prodData) {
+          const newStock = Math.max(0, (prodData.stock || 0) - totalUnitsOrdered);
+          await supabase.from('products').update({ stock: newStock }).eq('id', 1);
+        }
+      }
+      // --- End Inventory Deduction ---
+
       if (onSuccess) onSuccess(data[0]);
       onClearCart();
       onNavigate('thank-you');
@@ -766,6 +785,223 @@ const CheckoutPage = ({ onNavigate, cart, onClearCart, onSuccess, onShowToast })
   );
 };
 
+// --- Analytics Tab Component --- //
+const AnalyticsTab = ({ onShowToast }) => {
+  const [allPaidOrders, setAllPaidOrders] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [rangeType, setRangeType] = useState('past30'); // today | past7 | thisMonth | past30 | pastMonth | custom
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+
+  useEffect(() => {
+    fetchPaidOrders();
+  }, []);
+
+  const fetchPaidOrders = async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase
+      .from('orders')
+      .select('id, total, subtotal, shipping, created_at, items, payment_status')
+      .eq('payment_status', 'paid')
+      .order('created_at', { ascending: false });
+    if (!error) setAllPaidOrders(data || []);
+    else onShowToast('Error loading analytics: ' + error.message, 'error');
+    setIsLoading(false);
+  };
+
+  const getDateRange = () => {
+    const now = new Date();
+    const startOfDay = (d) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+    const endOfDay = (d) => { const x = new Date(d); x.setHours(23,59,59,999); return x; };
+    switch (rangeType) {
+      case 'today':
+        return { from: startOfDay(now), to: endOfDay(now) };
+      case 'past7': {
+        const from = new Date(now); from.setDate(from.getDate() - 6); return { from: startOfDay(from), to: endOfDay(now) };
+      }
+      case 'thisMonth':
+        return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: endOfDay(now) };
+      case 'past30': {
+        const from = new Date(now); from.setDate(from.getDate() - 29); return { from: startOfDay(from), to: endOfDay(now) };
+      }
+      case 'pastMonth': {
+        const y = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+        const m = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+        return { from: new Date(y, m, 1), to: new Date(y, m + 1, 0, 23, 59, 59, 999) };
+      }
+      case 'custom':
+        if (!customFrom || !customTo) return null;
+        return { from: new Date(customFrom), to: endOfDay(new Date(customTo)) };
+      default:
+        return null;
+    }
+  };
+
+  const range = getDateRange();
+  const filtered = range
+    ? allPaidOrders.filter(o => {
+        const d = new Date(o.created_at);
+        return d >= range.from && d <= range.to;
+      })
+    : allPaidOrders;
+
+  const totalRevenue = filtered.reduce((s, o) => s + parseFloat(o.total), 0);
+  const totalOrders = filtered.length;
+  const avgOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+  const totalUnits = filtered.reduce((s, o) => {
+    const items = o.items || [];
+    return s + items.reduce((ss, item) => ss + (item.count || item.quantity || 1) * (item.quantity || 1), 0);
+  }, 0);
+
+  // Build daily chart data for filtered range
+  const buildChartData = () => {
+    if (!range) return [];
+    const days = [];
+    const cur = new Date(range.from);
+    while (cur <= range.to) {
+      const label = cur.toLocaleDateString('en-PK', { month: 'short', day: 'numeric' });
+      const dateStr = cur.toDateString();
+      const dayOrders = filtered.filter(o => new Date(o.created_at).toDateString() === dateStr);
+      const dayRevenue = dayOrders.reduce((s, o) => s + parseFloat(o.total), 0);
+      days.push({ label, revenue: dayRevenue, orders: dayOrders.length });
+      cur.setDate(cur.getDate() + 1);
+    }
+    return days;
+  };
+  const chartData = buildChartData();
+  const maxRevenue = Math.max(...chartData.map(d => d.revenue), 1);
+
+  const rangeButtons = [
+    { key: 'today', label: 'Today' },
+    { key: 'past7', label: 'Past 7 Days' },
+    { key: 'thisMonth', label: 'This Month' },
+    { key: 'past30', label: 'Past 30 Days' },
+    { key: 'pastMonth', label: 'Last Month' },
+    { key: 'custom', label: 'Custom' },
+  ];
+
+  return (
+    <div className="analytics-wrapper">
+      <div className="analytics-header-row">
+        <h2 className="analytics-title"><BarChart2 size={22} /> Sales Analytics</h2>
+        <button className="admin-refresh-btn" onClick={fetchPaidOrders} disabled={isLoading}>
+          <RefreshCcw size={16} className={isLoading ? 'spinning' : ''} /> Refresh
+        </button>
+      </div>
+
+      {/* Range Filter */}
+      <div className="analytics-range-row">
+        {rangeButtons.map(btn => (
+          <button
+            key={btn.key}
+            className={`analytics-range-btn ${rangeType === btn.key ? 'active' : ''}`}
+            onClick={() => setRangeType(btn.key)}
+          >{btn.label}</button>
+        ))}
+      </div>
+
+      {rangeType === 'custom' && (
+        <div className="analytics-custom-dates">
+          <div className="analytics-date-field">
+            <label>From</label>
+            <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)} />
+          </div>
+          <div className="analytics-date-field">
+            <label>To</label>
+            <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)} />
+          </div>
+        </div>
+      )}
+
+      {/* KPI Cards */}
+      <div className="analytics-kpi-grid">
+        <div className="kpi-card">
+          <div className="kpi-icon revenue"><DollarSign size={22} /></div>
+          <div className="kpi-info">
+            <div className="kpi-label">Total Revenue</div>
+            <div className="kpi-value">Rs.{totalRevenue.toLocaleString('en-PK', {minimumFractionDigits: 2})}</div>
+          </div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-icon orders"><ShoppingBag size={22} /></div>
+          <div className="kpi-info">
+            <div className="kpi-label">Paid Orders</div>
+            <div className="kpi-value">{totalOrders}</div>
+          </div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-icon avg"><TrendingUp size={22} /></div>
+          <div className="kpi-info">
+            <div className="kpi-label">Avg Order Value</div>
+            <div className="kpi-value">Rs.{avgOrder.toLocaleString('en-PK', {minimumFractionDigits: 2})}</div>
+          </div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-icon units"><Layers size={22} /></div>
+          <div className="kpi-info">
+            <div className="kpi-label">Units Sold</div>
+            <div className="kpi-value">{totalUnits}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bar Chart */}
+      {chartData.length > 0 && (
+        <div className="analytics-chart-card">
+          <h3 className="chart-title">Revenue by Day</h3>
+          <div className="bar-chart-scroll">
+            <div className="bar-chart" style={{ '--bar-count': chartData.length }}>
+              {chartData.map((day, i) => (
+                <div key={i} className="bar-col">
+                  <div className="bar-tooltip">Rs.{day.revenue.toFixed(0)}<br />{day.orders} order{day.orders !== 1 ? 's' : ''}</div>
+                  <div
+                    className="bar-fill"
+                    style={{ height: `${(day.revenue / maxRevenue) * 100}%`, opacity: day.revenue === 0 ? 0.15 : 1 }}
+                  />
+                  {chartData.length <= 14 && <div className="bar-label">{day.label}</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Recent Paid Orders Table */}
+      <div className="analytics-chart-card">
+        <h3 className="chart-title">Paid Orders in Period</h3>
+        {isLoading ? (
+          <div style={{textAlign:'center', padding:'30px', color:'var(--text-muted)'}}>Loading...</div>
+        ) : filtered.length === 0 ? (
+          <div style={{textAlign:'center', padding:'30px', color:'var(--text-muted)'}}>No paid orders in this period.</div>
+        ) : (
+          <div style={{overflowX:'auto'}}>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>ORDER</th>
+                  <th>DATE</th>
+                  <th>ITEMS</th>
+                  <th>TOTAL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(order => (
+                  <tr key={order.id} className="admin-table-row">
+                    <td>#{order.id}</td>
+                    <td>{new Date(order.created_at).toLocaleDateString('en-PK', { day:'2-digit', month:'short', year:'numeric' })}</td>
+                    <td>{(order.items||[]).map(i => `${i.quantity}× ${i.bundleName||i.name}`).join(', ')}</td>
+                    <td style={{fontWeight:'700', color:'var(--cyan)'}}>Rs.{parseFloat(order.total).toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // --- Admin Portal Component --- //
 const AdminPortal = ({ productInfo, onUpdateProduct, onShowToast }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -776,6 +1012,7 @@ const AdminPortal = ({ productInfo, onUpdateProduct, onShowToast }) => {
   const [editName, setEditName] = useState(productInfo.name);
   const [editPrice, setEditPrice] = useState(productInfo.price);
   const [editComparePrice, setEditComparePrice] = useState(productInfo.compareAtPrice);
+  const [editStock, setEditStock] = useState(productInfo.stock ?? 0);
   const [editImageUrls, setEditImageUrls] = useState(productInfo.imageUrls || []);
   const [newImageUrl, setNewImageUrl] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -797,6 +1034,7 @@ const AdminPortal = ({ productInfo, onUpdateProduct, onShowToast }) => {
     setEditName(productInfo.name);
     setEditPrice(productInfo.price);
     setEditComparePrice(productInfo.compareAtPrice);
+    setEditStock(productInfo.stock ?? 0);
     setEditImageUrls(productInfo.imageUrls || []);
   }, [productInfo]);
 
@@ -866,6 +1104,7 @@ const AdminPortal = ({ productInfo, onUpdateProduct, onShowToast }) => {
         name: editName,
         price: parseFloat(editPrice), 
         compare_at_price: parseFloat(editComparePrice),
+        stock: parseInt(editStock, 10),
         image_urls: editImageUrls
       })
       .eq('id', 1);
@@ -876,6 +1115,7 @@ const AdminPortal = ({ productInfo, onUpdateProduct, onShowToast }) => {
         name: editName,
         price: parseFloat(editPrice),
         compareAtPrice: parseFloat(editComparePrice),
+        stock: parseInt(editStock, 10),
         imageUrls: editImageUrls
       });
     } else {
@@ -955,14 +1195,14 @@ const AdminPortal = ({ productInfo, onUpdateProduct, onShowToast }) => {
         <nav className="admin-nav">
           <button className={`admin-nav-item ${activeTab === 'product' ? 'active' : ''}`} onClick={() => setActiveTab('product')}><Tag size={20} /> Product Management</button>
           <button className={`admin-nav-item ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => setActiveTab('orders')}><ShoppingBag size={20} /> Manage Orders</button>
-          <button className={`admin-nav-item ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => setActiveTab('analytics')}><LayoutDashboard size={20} /> Analytics</button>
+          <button className={`admin-nav-item ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => setActiveTab('analytics')}><BarChart2 size={20} /> Analytics</button>
         </nav>
         <button className="admin-logout-btn" onClick={() => setIsLoggedIn(false)}><LogOut size={20} /> Logout</button>
       </aside>
 
       <main className="admin-main-content">
         <header className="admin-top-bar">
-          <div className="admin-breadcrumb">Dashboard / <span>{activeTab === 'product' ? 'Product Management' : activeTab === 'orders' ? 'Manage Orders' : activeTab}</span></div>
+          <div className="admin-breadcrumb">Dashboard / <span>{activeTab === 'product' ? 'Product Management' : activeTab === 'orders' ? 'Manage Orders' : activeTab === 'analytics' ? 'Analytics' : activeTab}</span></div>
           {activeTab === 'orders' && <button className="admin-refresh-btn" onClick={fetchOrders} disabled={isOrdersLoading}><RefreshCcw size={16} className={isOrdersLoading ? 'spinning' : ''} /> Refresh</button>}
         </header>
 
@@ -993,6 +1233,25 @@ const AdminPortal = ({ productInfo, onUpdateProduct, onShowToast }) => {
                           <label>Compare Price (PKR)</label>
                           <input type="number" step="0.01" value={editComparePrice} onChange={(e) => setEditComparePrice(e.target.value)} required />
                         </div>
+                      </div>
+                      <div className="admin-input-group" style={{marginTop:'12px'}}>
+                        <label style={{display:'flex',alignItems:'center',gap:'6px'}}>
+                          <Package size={16} color="var(--cyan)" /> Inventory / Stock (units)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={editStock}
+                          onChange={(e) => setEditStock(e.target.value)}
+                          required
+                          style={{maxWidth:'180px'}}
+                        />
+                        <p className="admin-help-text" style={{marginTop:'6px'}}>
+                          Current stock: <strong style={{color: editStock <= 10 ? '#ff6b6b' : 'var(--cyan)'}}>{editStock} units</strong>
+                          {editStock <= 10 && editStock > 0 && <span style={{color:'#ff6b6b', marginLeft:'8px'}}>⚠ Low stock</span>}
+                          {editStock == 0 && <span style={{color:'#ff4040', marginLeft:'8px'}}>✗ Out of stock</span>}
+                        </p>
                       </div>
                     </div>
                   )}
@@ -1065,6 +1324,10 @@ const AdminPortal = ({ productInfo, onUpdateProduct, onShowToast }) => {
                 </tbody>
               </table>
             </div>
+          )}
+
+          {activeTab === 'analytics' && (
+            <AnalyticsTab onShowToast={onShowToast} />
           )}
         </div>
       )}
@@ -1251,7 +1514,7 @@ function App() {
   const [currentPage, setCurrentPage] = useState('home');
   const [cart, setCart] = useState([]);
   const [emailInput, setEmailInput] = useState('');
-  const [productInfo, setProductInfo] = useState({ name: "", price: 0, compareAtPrice: 0, imageUrls: [] });
+  const [productInfo, setProductInfo] = useState({ name: "", price: 0, compareAtPrice: 0, imageUrls: [], stock: 0 });
   const [lastOrder, setLastOrder] = useState(null);
   const [toast, setToast] = useState(null);
 
@@ -1268,6 +1531,7 @@ function App() {
           name: data.name,
           price: parseFloat(data.price),
           compareAtPrice: parseFloat(data.compare_at_price),
+          stock: parseInt(data.stock ?? 0, 10),
           imageUrls: data.image_urls || []
         });
       }
